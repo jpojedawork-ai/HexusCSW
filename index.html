@@ -448,6 +448,25 @@
       margin-bottom: 8px;
       border: 1px solid #dce9f2;
     }
+    .persona-info {
+      flex: 1;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .persona-info:hover {
+      background-color: #eef3fc;
+      border-radius: 0.8rem;
+      padding-left: 6px;
+    }
+    .persona-nombre {
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .persona-puesto {
+      font-size: 0.7rem;
+      color: #2c6e9e;
+      cursor: pointer;
+    }
     .btn-eliminar-persona {
       background: #fee9e8;
       padding: 4px 12px;
@@ -455,19 +474,19 @@
       font-size: 0.7rem;
     }
 
-    /* Login card corporate */
+    /* Login card corporate - z-index elevado */
     .login-modal {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 35, 70, 0.8);
+      background: rgba(0, 35, 70, 0.85);
       backdrop-filter: blur(10px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10000;
+      z-index: 20000;
     }
     .login-card {
       background: white;
@@ -481,6 +500,11 @@
     .login-card img {
       width: 100px;
       margin-bottom: 1rem;
+    }
+
+    /* Aseguramos que SweetAlert2 aparezca por encima de todo */
+    .swal2-container {
+      z-index: 30000 !important;
     }
 
     /* Timer azul */
@@ -500,6 +524,22 @@
     .session-timer.warning { background: #e67e22; }
     .session-timer.critical { background: #dc2626; animation: pulse 0.7s infinite; }
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } }
+    
+    /* Estilo para edición inline en el modal de personas */
+    .editando-persona {
+      background: #eef3fc;
+      border-radius: 0.8rem;
+      box-shadow: 0 0 0 2px #1a5d8c;
+    }
+    .input-editar-nombre, .input-editar-puesto {
+      margin: 2px 0;
+      padding: 4px 8px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      width: calc(100% - 16px);
+      background: white;
+      border: 1px solid #1a5d8c;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -560,7 +600,7 @@
 </div>
 <div id="sessionTimer" class="session-timer" style="display:none;"><span id="timerText">01:00</span></div>
 
-<!-- MODALES (estructura preservada con mejora de apunte: título + contenido) -->
+<!-- MODALES -->
 <div id="historyModal" class="modal"><div class="modal-content"><h3>📜 Historial de cambios</h3><div id="historyContent"></div><div class="modal-buttons"><button id="closeHistoryBtn" class="btn-secondary">Cerrar</button><button id="editFromHistoryBtn" class="btn-primary">✏️ Editar guardia</button></div></div></div>
 <div id="guardiaModal" class="modal"><div class="modal-content"><h3 id="modalTitle">📌 Asignar Guardia</h3><div id="dateChangeWarning" style="display:none; background:#fff0e0; padding:8px; border-radius:20px; margin-bottom:10px;">⚠️ Si cambias la fecha, la guardia se MOVERÁ</div><input type="date" id="modalDate" /><div style="display:flex; gap:8px;"><select id="personName" style="flex:1"></select><button type="button" id="btnGestionarPersonas" class="btn-gestionar-personas" style="background:#eef3fc; border-radius:40px; padding:0 16px;">➕ Gestionar</button></div><input type="text" id="personPosition" placeholder="Puesto / Rol" readonly style="background:#f8fbfe;" /><div class="time-select-group"><div style="flex:1"><label>Entrada</label><div style="display:flex; gap:8px;"><select id="horaEntradaH"></select><select id="horaEntradaM"></select></div></div><div style="flex:1"><label>Salida</label><div style="display:flex; gap:8px;"><select id="horaSalidaH"></select><select id="horaSalidaM"></select></div></div></div><div><label>Color:</label><input type="color" id="personColor" value="#3b82f6" style="width:50px;" /><span id="colorPreview" style="display:inline-block; width:32px; height:32px; border-radius:50%; background:#3b82f6; vertical-align:middle; margin-left:12px;"></span></div><div class="modal-buttons"><button id="saveGuardiaBtn" class="btn-primary">Guardar</button><button id="cancelModalBtn" class="btn-secondary">Cancelar</button><button id="deleteGuardiaModalBtn" class="btn-danger" style="display:none;">Eliminar</button></div></div></div>
 <div id="personasModal" class="modal"><div class="modal-content"><h3>👥 Gestión de personas</h3><input type="text" id="nuevaPersonaNombre" placeholder="Nombre completo" /><input type="text" id="nuevaPersonaPuesto" placeholder="Puesto / Rol" /><button id="btnAgregarPersona" class="btn-primary" style="width:100%;">➕ Agregar persona</button><div id="listaPersonasContainer" class="personas-list" style="margin-top:1rem;"></div><div class="modal-buttons"><button id="closePersonasBtn" class="btn-secondary">Cerrar</button></div></div></div>
@@ -581,7 +621,25 @@
   function verificarSesionAlCargar(){ let sv=sessionStorage.getItem('sesionActiva'), pg=localStorage.getItem('perfilActual'); if(sv==='true' && pg && PASSWORDS[pg]){ perfilActual=pg; soloLectura=(pg==='visitante'); document.getElementById('perfilNombre').innerText=pg==='control-interno'?'Control Interno':'Visitante'; document.getElementById('profileBadge').style.display='flex'; document.getElementById('controlsBar').style.opacity='1'; document.getElementById('controlsBar').style.pointerEvents='auto'; document.getElementById('loginOverlay').style.display='none'; iniciarTemporizadorSesion(); activarDetectorInactividad(); mostrarRelojSesion(true); loadFromLocal(); cargarPersonas(); renderCurrentView(); return true; } return false; }
   function iniciarTemporizadorSesion(){ iniciarContadorReloj(); reiniciarTemporizadorSesion(); }
   function mostrarRelojSesion(m){ let t=document.getElementById('sessionTimer'); if(t) t.style.display=m?'flex':'none'; }
-  async function cerrarSesion(){ if(perfilActual){ if(temporizadorReloj) clearInterval(temporizadorReloj); if(temporizadorInactividad) clearTimeout(temporizadorInactividad); localStorage.removeItem('perfilActual'); sessionStorage.removeItem('sesionActiva'); perfilActual=null; soloLectura=true; document.getElementById('profileBadge').style.display='none'; document.getElementById('controlsBar').style.opacity='0.5'; document.getElementById('controlsBar').style.pointerEvents='none'; document.getElementById('sessionTimer').style.display='none'; document.getElementById('loginOverlay').style.display='flex'; document.getElementById('authPassword').value=''; document.getElementById('profileSelect').value=''; await Swal.fire({title:'👋 Sesión cerrada',text:'Sesión finalizada',icon:'info',timer:2000,showConfirmButton:false}); } }
+  async function cerrarSesion(){ 
+    if(perfilActual){ 
+      if(temporizadorReloj) clearInterval(temporizadorReloj); 
+      if(temporizadorInactividad) clearTimeout(temporizadorInactividad); 
+      localStorage.removeItem('perfilActual'); 
+      sessionStorage.removeItem('sesionActiva'); 
+      perfilActual=null; 
+      soloLectura=true; 
+      document.getElementById('profileBadge').style.display='none'; 
+      document.getElementById('controlsBar').style.opacity='0.5'; 
+      document.getElementById('controlsBar').style.pointerEvents='none'; 
+      document.getElementById('sessionTimer').style.display='none'; 
+      document.getElementById('loginOverlay').style.display='flex'; 
+      document.getElementById('authPassword').value=''; 
+      document.getElementById('profileSelect').value=''; 
+      // Mostrar aviso dinámico al cerrar sesión
+      await Swal.fire({title:'👋 Sesión cerrada',text:'Has cerrado sesión correctamente',icon:'info',timer:2000,showConfirmButton:false}); 
+    } 
+  }
   window.addEventListener('beforeunload',()=>{ if(perfilActual) sessionStorage.setItem('sesionActiva','true'); });
   function isSaturday(d){ let p=d.split('-'); let date=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])); return date.getDay()===6; }
   function getDayOfWeekSpanish(d){ let p=d.split('-'),date=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])); return ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][date.getDay()]; }
@@ -600,7 +658,117 @@
   function cargarPersonas(){ let st=localStorage.getItem("personasRegistradas"); if(st) personasRegistradas=new Map(JSON.parse(st)); actualizarSelectPersonas(); actualizarListaPersonasModal(); }
   function guardarPersonas(){ localStorage.setItem("personasRegistradas",JSON.stringify(Array.from(personasRegistradas.entries()))); actualizarSelectPersonas(); actualizarListaPersonasModal(); }
   function actualizarSelectPersonas(){ let sel=document.getElementById("personName"); if(!sel) return; let val=sel.value; sel.innerHTML='<option value="" disabled selected>-- Seleccionar persona --</option>'; for(let [nom,pue] of personasRegistradas.entries()){ let op=document.createElement("option"); op.value=nom; op.textContent=nom; if(val===nom) op.selected=true; sel.appendChild(op); } if(personasRegistradas.size>0&&(!sel.value||sel.value==="")){ let first=Array.from(personasRegistradas.keys())[0]; sel.value=first; document.getElementById("personPosition").value=personasRegistradas.get(first)||""; } }
-  function actualizarListaPersonasModal(){ let cont=document.getElementById("listaPersonasContainer"); if(!cont) return; if(personasRegistradas.size===0){ cont.innerHTML='<p style="text-align:center; color:#6f8aaa;">No hay personas registradas</p>'; return; } let html=""; for(let [nom,pue] of personasRegistradas.entries()){ html+=`<div class="persona-item"><div><div class="persona-nombre" style="font-weight:600;">${escapeHtml(nom)}</div><div style="font-size:0.7rem;">${escapeHtml(pue)}</div></div><button class="btn-eliminar-persona" data-nombre="${nom.replace(/"/g, '&quot;')}">Eliminar</button></div>`; } cont.innerHTML=html; document.querySelectorAll('.btn-eliminar-persona').forEach(b=>b.addEventListener('click',()=>{ let nom=b.getAttribute('data-nombre'); if(confirm(`¿Eliminar a "${nom}"? Se eliminarán sus guardias.`)) eliminarPersonaCompleta(nom); })); }
+  
+  // Función para editar persona (nombre y puesto) con doble clic
+  function habilitarEdicionPersona(elementoNombre, elementoPuesto, nombreOriginal, puestoOriginal) {
+      // Crear inputs para edición
+      const inputNombre = document.createElement('input');
+      inputNombre.type = 'text';
+      inputNombre.value = nombreOriginal;
+      inputNombre.className = 'input-editar-nombre';
+      
+      const inputPuesto = document.createElement('input');
+      inputPuesto.type = 'text';
+      inputPuesto.value = puestoOriginal;
+      inputPuesto.className = 'input-editar-puesto';
+      
+      const contenedorInfo = elementoNombre.parentElement; // .persona-info
+      // Guardar el contenido original para restaurar si se cancela
+      const originalHTML = contenedorInfo.innerHTML;
+      
+      contenedorInfo.innerHTML = '';
+      contenedorInfo.appendChild(inputNombre);
+      contenedorInfo.appendChild(inputPuesto);
+      
+      const guardarEdicion = () => {
+          const nuevoNombre = inputNombre.value.trim();
+          const nuevoPuesto = inputPuesto.value.trim();
+          if (nuevoNombre === "") {
+              alert("El nombre no puede estar vacío");
+              return;
+          }
+          if (nuevoNombre !== nombreOriginal && personasRegistradas.has(nuevoNombre)) {
+              alert("Ya existe una persona con ese nombre");
+              return;
+          }
+          // Actualizar el Map
+          if (nuevoNombre !== nombreOriginal) {
+              // Cambiar nombre en el Map
+              personasRegistradas.set(nuevoNombre, nuevoPuesto);
+              personasRegistradas.delete(nombreOriginal);
+              // Actualizar todas las guardias que tengan este nombre
+              for (let [fecha, guardia] of guards.entries()) {
+                  if (guardia.personName === nombreOriginal) {
+                      guardia.personName = nuevoNombre;
+                      // Actualizar color opcionalmente
+                      guardia.color = getColorForPerson(nuevoNombre);
+                      guards.set(fecha, guardia);
+                  }
+              }
+          } else {
+              // Solo actualizar puesto
+              personasRegistradas.set(nombreOriginal, nuevoPuesto);
+          }
+          guardarPersonas();
+          renderCurrentView();
+          // Refrescar el modal para mostrar los datos actualizados
+          actualizarListaPersonasModal();
+      };
+      
+      const cancelarEdicion = () => {
+          contenedorInfo.innerHTML = originalHTML;
+          // Volver a asignar eventos de doble clic a los nuevos elementos
+          const nuevoNombreSpan = contenedorInfo.querySelector('.persona-nombre');
+          const nuevoPuestoSpan = contenedorInfo.querySelector('.persona-puesto');
+          if (nuevoNombreSpan && nuevoPuestoSpan) {
+              nuevoNombreSpan.addEventListener('dblclick', () => habilitarEdicionPersona(nuevoNombreSpan, nuevoPuestoSpan, nuevoNombreSpan.innerText, nuevoPuestoSpan.innerText));
+              nuevoPuestoSpan.addEventListener('dblclick', () => habilitarEdicionPersona(nuevoNombreSpan, nuevoPuestoSpan, nuevoNombreSpan.innerText, nuevoPuestoSpan.innerText));
+          }
+      };
+      
+      inputNombre.addEventListener('blur', guardarEdicion);
+      inputPuesto.addEventListener('blur', guardarEdicion);
+      inputNombre.addEventListener('keypress', (e) => { if (e.key === 'Enter') guardarEdicion(); });
+      inputPuesto.addEventListener('keypress', (e) => { if (e.key === 'Enter') guardarEdicion(); });
+      // Opcional: permitir cancelar con Escape
+      inputNombre.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelarEdicion(); });
+      inputPuesto.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelarEdicion(); });
+      
+      inputNombre.focus();
+  }
+  
+  function actualizarListaPersonasModal(){ 
+      let cont=document.getElementById("listaPersonasContainer"); 
+      if(!cont) return; 
+      if(personasRegistradas.size===0){ 
+          cont.innerHTML='<p style="text-align:center; color:#6f8aaa;">No hay personas registradas</p>'; 
+          return; 
+      } 
+      let html=""; 
+      for(let [nom,pue] of personasRegistradas.entries()){ 
+          html+=`<div class="persona-item">
+                    <div class="persona-info">
+                        <div class="persona-nombre">${escapeHtml(nom)}</div>
+                        <div class="persona-puesto">${escapeHtml(pue)}</div>
+                    </div>
+                    <button class="btn-eliminar-persona" data-nombre="${nom.replace(/"/g, '&quot;')}">Eliminar</button>
+                 </div>`; 
+      } 
+      cont.innerHTML=html; 
+      // Agregar eventos de doble clic a cada elemento de nombre y puesto
+      document.querySelectorAll('.persona-info').forEach(info => {
+          const nombreSpan = info.querySelector('.persona-nombre');
+          const puestoSpan = info.querySelector('.persona-puesto');
+          if (nombreSpan && puestoSpan) {
+              const nombreOriginal = nombreSpan.innerText;
+              const puestoOriginal = puestoSpan.innerText;
+              nombreSpan.addEventListener('dblclick', () => habilitarEdicionPersona(nombreSpan, puestoSpan, nombreOriginal, puestoOriginal));
+              puestoSpan.addEventListener('dblclick', () => habilitarEdicionPersona(nombreSpan, puestoSpan, nombreOriginal, puestoOriginal));
+          }
+      });
+      document.querySelectorAll('.btn-eliminar-persona').forEach(b=>b.addEventListener('click',()=>{ let nom=b.getAttribute('data-nombre'); if(confirm(`¿Eliminar a "${nom}"? Se eliminarán sus guardias.`)) eliminarPersonaCompleta(nom); })); 
+  }
+  
   function eliminarPersonaCompleta(nom){ personasRegistradas.delete(nom); for(let [f,g] of guards.entries()) if(g.personName===nom){ guards.delete(f); horarios.delete(f); } guardarPersonas(); saveToLocal(); renderCurrentView(); actualizarSelectPersonas(); actualizarListaPersonasModal(); alert(`✅ "${nom}" y sus guardias eliminados`); }
   function escapeHtml(t){ if(!t) return ''; return t.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;}); }
   function abrirModalPersonas(){ actualizarListaPersonasModal(); document.getElementById("personasModal").style.display="flex"; }
@@ -628,7 +796,42 @@
   function saveFromModal(){ let newDate=document.getElementById("modalDate").value, name=document.getElementById("personName").value, position=document.getElementById("personPosition").value.trim(), color=document.getElementById("personColor").value, eH=document.getElementById("horaEntradaH").value, eM=document.getElementById("horaEntradaM").value, sH=document.getElementById("horaSalidaH").value, sM=document.getElementById("horaSalidaM").value; if(!name||name===""){ alert("Seleccione persona"); return; } let esEdicion=guards.has(currentEditOriginalDate),entrada=null,salida=null; if(esEdicion){ if(!eH||!eM||!sH||!sM){ alert("Horario obligatorio en edición"); return; } entrada=`${eH}:${eM}`; salida=`${sH}:${sM}`; let eTot=parseInt(eH)*60+parseInt(eM), sTot=parseInt(sH)*60+parseInt(sM); if(sTot<=eTot){ alert("Salida debe ser posterior"); return; } } else { if(eH&&eM&&sH&&sM){ entrada=`${eH}:${eM}`; salida=`${sH}:${sM}`; let eTot=parseInt(eH)*60+parseInt(eM), sTot=parseInt(sH)*60+parseInt(sM); if(sTot<=eTot){ alert("Salida posterior requerida"); return; } } } saveGuardiaWithOptionalMove(currentEditOriginalDate,newDate,name,position,color,entrada,salida); closeModal(); }
   function deleteFromModal(){ if(confirm("¿Eliminar guardia?")){ removeGuardia(currentEditOriginalDate); closeModal(); } }
   function updateNav(){ document.getElementById("yearSelect").value=currentYear; let meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; document.getElementById("monthYearLabel").innerHTML=`${meses[currentMonth]} ${currentYear}`; document.querySelectorAll(".view-btn").forEach(btn=>{ if(btn.dataset.view===currentView) btn.classList.add("active"); else btn.classList.remove("active"); }); document.getElementById("monthNavPanel").style.display=currentView==="year"?"none":"flex"; }
-  async function doLogin(){ let perfil=document.getElementById("profileSelect").value, pass=document.getElementById("authPassword").value, pwdInp=document.getElementById("authPassword"); if(!perfil){ pwdInp.classList.add('error-shake'); setTimeout(()=>pwdInp.classList.remove('error-shake'),500); await Swal.fire({title:'Error',text:'Seleccione perfil',icon:'warning'}); return; } if(pass===PASSWORDS[perfil]){ perfilActual=perfil; soloLectura=(perfil==='visitante'); localStorage.setItem("perfilActual",perfil); sessionStorage.setItem("sesionActiva","true"); document.getElementById("perfilNombre").innerText=perfil==='control-interno'?'Control Interno':'Visitante'; document.getElementById("profileBadge").style.display="flex"; document.getElementById("controlsBar").style.opacity="1"; document.getElementById("controlsBar").style.pointerEvents="auto"; document.getElementById("loginOverlay").style.display="none"; iniciarContadorReloj(); reiniciarTemporizadorSesion(); activarDetectorInactividad(); mostrarRelojSesion(true); await Swal.fire({title:'✅ Bienvenido',text:`Acceso como ${perfil==='control-interno'?'Control Interno':'Visitante'}`,icon:'success',timer:1500,showConfirmButton:false}); loadFromLocal(); cargarPersonas(); renderCurrentView(); } else { pwdInp.classList.add('error-shake'); setTimeout(()=>pwdInp.classList.remove('error-shake'),500); await Swal.fire({title:'❌ Denegado',text:'Contraseña incorrecta',icon:'error'}); pwdInp.value=""; pwdInp.focus(); } }
+  async function doLogin(){ 
+    let perfil=document.getElementById("profileSelect").value, 
+        pass=document.getElementById("authPassword").value, 
+        pwdInp=document.getElementById("authPassword"); 
+    if(!perfil){ 
+      pwdInp.classList.add('error-shake'); 
+      setTimeout(()=>pwdInp.classList.remove('error-shake'),500); 
+      await Swal.fire({title:'Error',text:'Seleccione perfil',icon:'warning'}); 
+      return; 
+    } 
+    if(pass===PASSWORDS[perfil]){ 
+      perfilActual=perfil; 
+      soloLectura=(perfil==='visitante'); 
+      localStorage.setItem("perfilActual",perfil); 
+      sessionStorage.setItem("sesionActiva","true"); 
+      document.getElementById("perfilNombre").innerText=perfil==='control-interno'?'Control Interno':'Visitante'; 
+      document.getElementById("profileBadge").style.display="flex"; 
+      document.getElementById("controlsBar").style.opacity="1"; 
+      document.getElementById("controlsBar").style.pointerEvents="auto"; 
+      document.getElementById("loginOverlay").style.display="none"; 
+      iniciarContadorReloj(); 
+      reiniciarTemporizadorSesion(); 
+      activarDetectorInactividad(); 
+      mostrarRelojSesion(true); 
+      await Swal.fire({title:'✅ Bienvenido',text:`Acceso como ${perfil==='control-interno'?'Control Interno':'Visitante'}`,icon:'success',timer:1500,showConfirmButton:false}); 
+      loadFromLocal(); 
+      cargarPersonas(); 
+      renderCurrentView(); 
+    } else { 
+      pwdInp.classList.add('error-shake'); 
+      setTimeout(()=>pwdInp.classList.remove('error-shake'),500); 
+      await Swal.fire({title:'❌ Denegado',text:'Contraseña incorrecta',icon:'error'}); 
+      pwdInp.value=""; 
+      pwdInp.focus(); 
+    } 
+  }
   function initControls(){ let ySel=document.getElementById("yearSelect"); for(let y=2000;y<=2099;y++){ let opt=document.createElement("option"); opt.value=y; opt.textContent=y; if(y===currentYear) opt.selected=true; ySel.appendChild(opt); } ySel.addEventListener("change",e=>{ currentYear=parseInt(e.target.value); renderCurrentView(); }); document.getElementById("prevMonthBtn").addEventListener("click",()=>{ if(currentView==="month"){ let nm=currentMonth-1; if(nm<0){ nm=11; currentYear--; ySel.value=currentYear; } currentMonth=nm; renderCurrentView(); } else if(currentView==="day"){ let d=new Date(currentSelectedDate); d.setMonth(d.getMonth()-1); currentSelectedDate=d.toISOString().slice(0,10); renderCurrentView(); } }); document.getElementById("nextMonthBtn").addEventListener("click",()=>{ if(currentView==="month"){ let nm=currentMonth+1; if(nm>11){ nm=0; currentYear++; ySel.value=currentYear; } currentMonth=nm; renderCurrentView(); } else if(currentView==="day"){ let d=new Date(currentSelectedDate); d.setMonth(d.getMonth()+1); currentSelectedDate=d.toISOString().slice(0,10); renderCurrentView(); } }); document.querySelectorAll(".view-btn").forEach(btn=>{ btn.addEventListener("click",()=>{ currentView=btn.dataset.view; if(currentView==="day") currentSelectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; renderCurrentView(); }); }); document.getElementById("addGuardiaBtn").addEventListener("click",()=>{ if(soloLectura){ Swal.fire("Acceso restringido","Visitante no puede agregar","warning"); return; } let ref=new Date(currentYear,currentMonth,new Date().getDate()); let offset=(6-ref.getDay()+7)%7; let sat=new Date(ref); sat.setDate(ref.getDate()+offset); openModalForDate(`${sat.getFullYear()}-${String(sat.getMonth()+1).padStart(2,'0')}-${String(sat.getDate()).padStart(2,'0')}`); }); document.getElementById("saveGuardiaBtn").addEventListener("click",saveFromModal); document.getElementById("cancelModalBtn").addEventListener("click",closeModal); document.getElementById("deleteGuardiaModalBtn").addEventListener("click",deleteFromModal); document.getElementById("closeHistoryBtn").addEventListener("click",closeHistoryModal); document.getElementById("editFromHistoryBtn").addEventListener("click",()=>{ let date=document.getElementById("historyModal").getAttribute("data-current-date"); if(date) openModalForDate(date); closeHistoryModal(); }); document.getElementById("personColor").addEventListener("input",e=>{ document.getElementById("colorPreview").style.background=e.target.value; }); document.getElementById("saveApunteBtn").addEventListener("click",saveApunteFromModal); document.getElementById("cancelApunteBtn").addEventListener("click",closeApunteModal); document.getElementById("deleteApunteBtn").addEventListener("click",deleteApunteFromModal); document.getElementById("btnGestionarPersonas")?.addEventListener("click",abrirModalPersonas); document.getElementById("closePersonasBtn")?.addEventListener("click",cerrarModalPersonas); document.getElementById("btnAgregarPersona")?.addEventListener("click",agregarNuevaPersona); document.getElementById("personName")?.addEventListener("change",onPersonaSeleccionada); loadFromLocal(); cargarPersonas(); renderCurrentView(); }
   document.getElementById("btnLogin").addEventListener("click",doLogin); document.getElementById("authPassword").addEventListener("keypress",e=>{ if(e.key==="Enter") doLogin(); }); document.getElementById("btnCambiarPerfil").addEventListener("click",()=>cerrarSesion()); document.getElementById("btnWhatsApp").addEventListener("click",()=>mostrarModalEnvio('whatsapp')); document.getElementById("btnEmail").addEventListener("click",()=>mostrarModalEnvio('email')); document.getElementById("btnExportJSON").addEventListener("click",exportarJSON); let importFile=document.getElementById("importFileInput"); document.getElementById("btnImportJSON").addEventListener("click",()=>importFile.click()); importFile.addEventListener("change",async(e)=>{ if(e.target.files.length>0){ await importarJSON(e.target.files[0]); importFile.value=''; } });
   if(!verificarSesionAlCargar()){ document.getElementById("profileBadge").style.display="none"; document.getElementById("controlsBar").style.opacity="0.5"; document.getElementById("controlsBar").style.pointerEvents="none"; initControls(); } else { initControls(); }
