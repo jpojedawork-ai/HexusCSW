@@ -1424,8 +1424,7 @@
           msg += `      👤 ${n.responsables.join(", ")} · ${n.puesto}\n`;
           msg += `      🕒 ${n.horario}\n`;
           if (n.txt) {
-            let t = n.txt.length > 60 ? n.txt.substring(0, 60) + '...' : n.txt;
-            msg += `      📝 ${t}\n`;
+            msg += `      📝 ${n.txt}\n`;
           }
           msg += `\n`;
         });
@@ -1510,8 +1509,7 @@
           msg += `      👤 ${n.responsables.join(", ")} · ${n.puesto}\n`;
           msg += `      🕒 ${n.horario}\n`;
           if (n.txt) {
-            let t = n.txt.length > 60 ? n.txt.substring(0, 60) + '...' : n.txt;
-            msg += `      📝 ${t}\n`;
+            msg += `      📝 ${n.txt}\n`;
           }
           msg += `\n`;
         });
